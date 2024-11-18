@@ -3,8 +3,8 @@
 const { setTimeout: sleep } = require('node:timers/promises')
 const fastify = require('fastify')
 
-function createFastifyApp (t) {
-  const app = fastify()
+function createFastifyApp (opts = {}) {
+  const app = fastify(opts)
 
   app.all('/500ms', async () => {
     await sleep(500)
@@ -23,7 +23,7 @@ function createFastifyApp (t) {
 
   app.all('/dynamic_delay', async (request) => {
     const delay = request.query.delay
-    await sleep(delay)
+    await sleep(parseInt(delay))
     return 'Hello World\n'
   })
 
