@@ -2,13 +2,14 @@
 
 const assert = require('node:assert/strict')
 const { test } = require('node:test')
+const { setTimeout: sleep } = require('node:timers/promises')
 const { request } = require('undici')
 const { Registry } = require('prom-client')
 const httpMetrics = require('../index.js')
 const { createFastifyApp, calculateEpsilon } = require('./helper.js')
 
 test('should calculate the http request duration histogram', async (t) => {
-  const app = createFastifyApp(t)
+  const app = createFastifyApp()
 
   const registry = new Registry()
   app.register(httpMetrics, { registry })
@@ -137,7 +138,7 @@ test('should calculate the http request duration histogram', async (t) => {
 })
 
 test('should ignore some methods and routes', async (t) => {
-  const app = createFastifyApp(t)
+  const app = createFastifyApp()
 
   const registry = new Registry()
   app.register(httpMetrics, {
@@ -219,7 +220,7 @@ test('should ignore some methods and routes', async (t) => {
 })
 
 test('should ignore route with a callback', async (t) => {
-  const app = createFastifyApp(t)
+  const app = createFastifyApp()
 
   const registry = new Registry()
   app.register(httpMetrics, {
@@ -272,7 +273,7 @@ test('should ignore route with a callback', async (t) => {
 })
 
 test('should calculate the http request duration histogram for injects', async (t) => {
-  const app = createFastifyApp(t)
+  const app = createFastifyApp()
 
   const registry = new Registry()
   app.register(httpMetrics, { registry })
@@ -397,4 +398,51 @@ test('should calculate the http request duration histogram for injects', async (
       `expected ${expectedValue}, got ${value}, epsilon ${epsilon}`
     )
   }
+})
+
+test('should not throw if request timers are not found', async (t) => {
+  const app = createFastifyApp({
+    logger: {
+      level: 'error',
+      hooks: {
+        logMethod (args, method, level) {
+          if (level === 50) {
+            assert.fail('should not log error')
+          }
+          return method.apply(this, args)
+        }
+      }
+    }
+  })
+
+  app.addHook('onRequest', async (request, reply) => {
+    reply.code(401)
+    reply.send('Failed to handle request')
+    return reply
+  })
+
+  const registry = new Registry()
+  app.register(httpMetrics, { registry })
+
+  await app.listen({ port: 0 })
+  t.after(() => app.close())
+
+  const serverUrl = `http://localhost:${app.server.address().port}`
+  const responsePromise = request(serverUrl + '/dynamic_delay', {
+    query: {
+      delay: 1000
+    }
+  })
+  // Wait for server to receive the request
+  await sleep(500)
+  const { statusCode } = await responsePromise
+  assert.strictEqual(statusCode, 401)
+
+  const metrics = await registry.getMetricsAsJSON()
+  assert.strictEqual(metrics.length, 2)
+  const histogramMetric = metrics.find(
+    (metric) => metric.name === 'http_request_duration_seconds'
+  )
+  const histogramValues = histogramMetric.values
+  assert.strictEqual(histogramValues.length, 0)
 })

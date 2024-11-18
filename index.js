@@ -57,7 +57,10 @@ module.exports = fp(async function (fastify, opts) {
   fastify.addHook('onResponse', async (req, reply) => {
     if (ignoreRoute(req)) return
 
-    const { summaryTimer, histogramTimer } = timers.get(req)
+    const requestTimers = timers.get(req)
+    if (!requestTimers) return
+
+    const { summaryTimer, histogramTimer } = requestTimers
     timers.delete(req)
 
     if (ignore(req, reply)) return
