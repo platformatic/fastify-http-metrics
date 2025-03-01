@@ -492,7 +492,6 @@ test.only('should provide a default timer value so that the summary and histogra
 
     if (metricName !== 'http_request_duration_seconds_bucket') continue
 
-
     assert.strictEqual(value, 1)
   }
 
