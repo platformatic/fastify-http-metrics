@@ -27,19 +27,45 @@ module.exports = fp(async function (fastify, opts) {
     return false
   }
 
+  let needEntrySummary = true
+
   const summary = new Summary({
     name: 'http_request_summary_seconds',
     help: 'request duration in seconds summary',
     labelNames,
     registers,
+    collect: function () {
+      if (needEntrySummary) {
+        const summaryTimer = this.startTimer()
+        summaryTimer({
+          method: 'GET',
+          route: '/__empty_metrics',
+          status_code: 404
+        })
+      }
+      needEntrySummary = true
+    },
     ...opts.summary,
   })
+
+  let needEntryHistogram = true
 
   const histogram = new Histogram({
     name: 'http_request_duration_seconds',
     help: 'request duration in seconds',
     labelNames,
     registers,
+    collect: function () {
+      if (needEntryHistogram) {
+        const histogramTimer = this.startTimer()
+        histogramTimer({
+          method: 'GET',
+          route: '/__empty_metrics',
+          status_code: 404
+        })
+      }
+      needEntryHistogram = true
+    },
     ...opts.histogram,
   })
 
@@ -73,8 +99,14 @@ module.exports = fp(async function (fastify, opts) {
       ...getCustomLabels(req, reply),
     }
 
-    if (summaryTimer) summaryTimer(labels)
-    if (histogramTimer) histogramTimer(labels)
+    if (summaryTimer) {
+      summaryTimer(labels)
+      needEntrySummary = false
+    }
+    if (histogramTimer) {
+      histogramTimer(labels)
+      needEntryHistogram = false
+    }
   })
 }, {
   name: 'fastify-http-metrics'
