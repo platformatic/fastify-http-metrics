@@ -17,6 +17,7 @@ module.exports = fp(async function (fastify, opts) {
   const ignoreMethods = opts.ignoreMethods || defaultIgnoreMethods
   const ignoreRoutes = opts.ignoreRoutes || []
   const ignore = opts.ignore || (() => false)
+  const zeroFill = opts.zeroFill || false
 
   function ignoreRoute (request) {
     if (ignoreMethods.includes(request.method)) return true
@@ -27,47 +28,29 @@ module.exports = fp(async function (fastify, opts) {
     return false
   }
 
-  let needEntrySummary = true
-
   const summary = new Summary({
     name: 'http_request_summary_seconds',
     help: 'request duration in seconds summary',
     labelNames,
     registers,
-    collect: function () {
-      if (needEntrySummary) {
-        const summaryTimer = this.startTimer()
-        summaryTimer({
-          method: 'GET',
-          route: '/__empty_metrics',
-          status_code: 404
-        })
-      }
-      needEntrySummary = true
-    },
     ...opts.summary,
   })
 
-  let needEntryHistogram = true
+  if (zeroFill) {
+    summary.observe({ method: 'GET', route: '/__empty_metrics', status_code: 404 }, 0)
+  }
 
   const histogram = new Histogram({
     name: 'http_request_duration_seconds',
     help: 'request duration in seconds',
     labelNames,
     registers,
-    collect: function () {
-      if (needEntryHistogram) {
-        const histogramTimer = this.startTimer()
-        histogramTimer({
-          method: 'GET',
-          route: '/__empty_metrics',
-          status_code: 404
-        })
-      }
-      needEntryHistogram = true
-    },
     ...opts.histogram,
   })
+
+  if (zeroFill) {
+    histogram.zero({ method: 'GET', route: '/__empty_metrics', status_code: 404 })
+  }
 
   const timers = new WeakMap()
 
@@ -101,11 +84,9 @@ module.exports = fp(async function (fastify, opts) {
 
     if (summaryTimer) {
       summaryTimer(labels)
-      needEntrySummary = false
     }
     if (histogramTimer) {
       histogramTimer(labels)
-      needEntryHistogram = false
     }
   })
 }, {

@@ -42,14 +42,18 @@ test('should calculate the http request duration histogram', async (t) => {
 
   {
     const histogramCount = histogramValues.find(
-      ({ metricName }) => metricName === 'http_request_duration_seconds_count'
+      ({ metricName, labels: { route } }) => {
+        return metricName === 'http_request_duration_seconds_count' && route !== '/__empty_metrics'
+      }
     )
     assert.strictEqual(histogramCount.value, expectedMeasurements.length)
   }
 
   {
     const histogramSum = histogramValues.find(
-      ({ metricName }) => metricName === 'http_request_duration_seconds_sum'
+      ({ metricName, labels: { route } }) => {
+        return metricName === 'http_request_duration_seconds_sum' && route !== '/__empty_metrics'
+      }
     )
     const value = histogramSum.value
     const expectedValue = expectedMeasurements.reduce((a, b) => a + b, 0)
@@ -305,14 +309,14 @@ test('should calculate the http request duration histogram for injects', async (
 
   {
     const histogramCount = histogramValues.find(
-      ({ metricName }) => metricName === 'http_request_duration_seconds_count'
+      ({ metricName, labels: { route } }) => metricName === 'http_request_duration_seconds_count' && route !== '/__empty_metrics'
     )
     assert.strictEqual(histogramCount.value, expectedMeasurements.length)
   }
 
   {
     const histogramSum = histogramValues.find(
-      ({ metricName }) => metricName === 'http_request_duration_seconds_sum'
+      ({ metricName, labels: { route } }) => metricName === 'http_request_duration_seconds_sum' && route !== '/__empty_metrics'
     )
     const value = histogramSum.value
     const expectedValue = expectedMeasurements.reduce((a, b) => a + b, 0)
@@ -324,6 +328,8 @@ test('should calculate the http request duration histogram for injects', async (
   }
 
   for (const { metricName, labels, value } of histogramValues) {
+    if (labels.route === '/__empty_metrics') continue
+
     assert.strictEqual(labels.method, 'GET')
     assert.strictEqual(labels.status_code, 200)
 
@@ -444,14 +450,14 @@ test('should not throw if request timers are not found', async (t) => {
     (metric) => metric.name === 'http_request_duration_seconds'
   )
   const histogramValues = histogramMetric.values
-  assert.strictEqual(histogramValues.length, 14)
+  assert.strictEqual(histogramValues.length, 0)
 })
 
-test.only('should provide a default timer value so that the summary and histogram are not empty', async (t) => {
+test('should provide a default timer value so that the summary and histogram are not empty', async (t) => {
   const app = createFastifyApp()
 
   const registry = new Registry()
-  app.register(httpMetrics, { registry })
+  app.register(httpMetrics, { registry, zeroFill: true })
 
   await app.listen({ port: 0 })
   t.after(() => app.close())
@@ -473,7 +479,7 @@ test.only('should provide a default timer value so that the summary and histogra
     const histogramCount = histogramValues.find(
       ({ metricName }) => metricName === 'http_request_duration_seconds_count'
     )
-    assert.strictEqual(histogramCount.value, 1)
+    assert.strictEqual(histogramCount.value, 0)
   }
 
   {
@@ -492,7 +498,7 @@ test.only('should provide a default timer value so that the summary and histogra
 
     if (metricName !== 'http_request_duration_seconds_bucket') continue
 
-    assert.strictEqual(value, 1)
+    assert.strictEqual(value, 0)
   }
 
   const summaryMetric = metrics.find(
