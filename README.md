@@ -51,6 +51,7 @@ app.listen({ port: 0 }, (err, address) => {
   - __`ignore(req, res, server)`__ `<function>` A function that returns a boolean indicating whether to ignore the request when collecting metrics. The function receives the request object as a first argument and a response object as a second argument.
   - __`histogram`__ `<object>` prom-client [histogram options](https://github.com/siimon/prom-client?tab=readme-ov-file#histogram). Use it if you want to customize the histogram.
   - __`summary`__ `<object>` prom-client [summary options](https://github.com/siimon/prom-client?tab=readme-ov-file#summary). Use it if you want to customize the summary.
+  - __`zeroFill`__ `<boolean>` Whether to zero-fill the histogram and summary buckets. Default: `false`.
 
 ## License
 
