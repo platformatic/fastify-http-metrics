@@ -17,7 +17,6 @@ module.exports = fp(async function (fastify, opts) {
   const ignoreMethods = opts.ignoreMethods || defaultIgnoreMethods
   const ignoreRoutes = opts.ignoreRoutes || []
   const ignore = opts.ignore || (() => false)
-  const zeroFill = opts.zeroFill || false
 
   function ignoreRoute (request) {
     if (ignoreMethods.includes(request.method)) return true
@@ -36,10 +35,6 @@ module.exports = fp(async function (fastify, opts) {
     ...opts.summary,
   })
 
-  if (zeroFill) {
-    summary.observe({ method: 'GET', route: '/__empty_metrics', status_code: 404 }, 0)
-  }
-
   const histogram = new Histogram({
     name: 'http_request_duration_seconds',
     help: 'request duration in seconds',
@@ -47,10 +42,6 @@ module.exports = fp(async function (fastify, opts) {
     registers,
     ...opts.histogram,
   })
-
-  if (zeroFill) {
-    histogram.zero({ method: 'GET', route: '/__empty_metrics', status_code: 404 })
-  }
 
   const timers = new WeakMap()
 
@@ -82,12 +73,8 @@ module.exports = fp(async function (fastify, opts) {
       ...getCustomLabels(req, reply),
     }
 
-    if (summaryTimer) {
-      summaryTimer(labels)
-    }
-    if (histogramTimer) {
-      histogramTimer(labels)
-    }
+    if (summaryTimer) summaryTimer(labels)
+    if (histogramTimer) histogramTimer(labels)
   })
 }, {
   name: 'fastify-http-metrics'
