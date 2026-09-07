@@ -16,7 +16,7 @@
     "undici": "^7.0.0"
   },
   "dependencies": {
-    "fastify-plugin": "^5.0.0",
+    "fastify-plugin": "^6.0.0",
     "prom-client": "^15.1.3"
   }
 }
